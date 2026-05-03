@@ -18,7 +18,10 @@ const userSchema = z.object({
   lastName: z.string().optional(),
   phoneNumber: z.string().optional(),
   bio: z.string().optional(),
-  gender: z.enum(['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY']).optional(),
+  gender: z
+    .enum(['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY'])
+    .optional()
+    .or(z.literal('')),
 });
 
 const brandSchema = z.object({
@@ -46,16 +49,20 @@ function ProfileImageUpload({
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     if (!ACCEPTED_TYPES.includes(file.type)) {
       setError('Only jpg, png, webp images allowed.');
       return;
     }
+
     if (file.size > MAX_FILE_SIZE) {
       setError('File must be under 4 MB.');
       return;
     }
+
     setError('');
     setUploading(true);
+
     try {
       await onUpload(file);
     } finally {
@@ -75,6 +82,7 @@ function ProfileImageUpload({
           <span className="text-2xl text-gray-400">+</span>
         )}
       </div>
+
       <button
         type="button"
         onClick={() => fileRef.current?.click()}
@@ -83,7 +91,9 @@ function ProfileImageUpload({
       >
         {uploading ? 'Uploading…' : 'Change photo'}
       </button>
+
       {error && <p className="text-red-500 text-xs">{error}</p>}
+
       <input
         ref={fileRef}
         type="file"
@@ -94,6 +104,8 @@ function ProfileImageUpload({
     </div>
   );
 }
+
+/* ================= USER ================= */
 
 function UserProfileSection() {
   const navigate = useNavigate();
@@ -131,16 +143,22 @@ function UserProfileSection() {
           lastName: profile.lastName ?? '',
           phoneNumber: profile.phoneNumber ?? '',
           bio: profile.bio ?? '',
-          gender: profile.gender ?? '',
+          gender: (profile.gender as any) ?? '',
         }
       : undefined,
   });
 
   const onSubmit = async (data: UserFormValues) => {
     try {
+      const cleanedData = {
+        ...data,
+        gender: data.gender === '' ? undefined : data.gender,
+      };
+
       await updateMutation.mutateAsync(
-        Object.fromEntries(Object.entries(data).filter(([, v]) => v !== '')) as UserFormValues,
+        Object.fromEntries(Object.entries(cleanedData).filter(([, v]) => v !== '')) as UserFormValues
       );
+
       reset(data);
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
@@ -160,89 +178,49 @@ function UserProfileSection() {
     navigate('/login');
   };
 
-  if (isLoading) {
-    return <p className="text-sm text-gray-500 text-center py-8">Loading profile…</p>;
-  }
+  if (isLoading) return <p className="text-sm text-gray-500 text-center py-8">Loading profile…</p>;
 
   return (
     <div>
       <ProfileImageUpload imageUrl={imageUrl ?? undefined} onUpload={handleUpload} />
-      <div className="text-center mb-6 text-xs text-gray-400">
-        {profile?.numberOfFollowers ?? 0} followers · {profile?.numberOfFollowing ?? 0} following · {profile?.numberOfPosts ?? 0} posts
-      </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-          <input {...register('username')} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username.message}</p>}
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">First name</label>
-            <input {...register('firstName')} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Last name</label>
-            <input {...register('lastName')} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-          <input {...register('phoneNumber')} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
-          <textarea {...register('bio')} rows={3} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-          <select {...register('gender')} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-            <option value="">Prefer not to say</option>
-            <option value="MALE">Male</option>
-            <option value="FEMALE">Female</option>
-            <option value="OTHER">Other</option>
-          </select>
-        </div>
-        {errors.root && <p className="text-red-500 text-sm text-center">{errors.root.message}</p>}
-        <button type="submit" disabled={isSubmitting || !isDirty} className="bg-gray-900 text-white rounded-lg py-2 text-sm font-medium hover:bg-gray-800 disabled:opacity-40 transition-colors">
-          {isSubmitting ? 'Saving…' : 'Save changes'}
+        <input {...register('username')} placeholder="Username" />
+
+        <select {...register('gender')}>
+          <option value="">Prefer not to say</option>
+          <option value="MALE">Male</option>
+          <option value="FEMALE">Female</option>
+          <option value="OTHER">Other</option>
+        </select>
+
+        <button disabled={isSubmitting || !isDirty}>
+          {isSubmitting ? 'Saving…' : 'Save'}
         </button>
       </form>
 
-      <div className="mt-8 border-t border-gray-100 pt-6">
-        {!deleteConfirm ? (
-          <button onClick={() => setDeleteConfirm(true)} className="w-full text-sm text-red-500 hover:text-red-700 py-2">
-            Delete account
-          </button>
-        ) : (
-          <div className="text-center space-y-2">
-            <p className="text-sm text-gray-700">This cannot be undone. Are you sure?</p>
-            <div className="flex gap-2">
-              <button onClick={() => setDeleteConfirm(false)} className="flex-1 border border-gray-300 rounded-lg py-2 text-sm hover:bg-gray-50">Cancel</button>
-              <button onClick={handleDelete} className="flex-1 bg-red-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-red-700">Delete</button>
-            </div>
-          </div>
-        )}
-      </div>
+      {deleteConfirm ? (
+        <div>
+          <button onClick={handleDelete}>Confirm delete</button>
+          <button onClick={() => setDeleteConfirm(false)}>Cancel</button>
+        </div>
+      ) : (
+        <button onClick={() => setDeleteConfirm(true)}>Delete account</button>
+      )}
     </div>
   );
 }
+
+/* ================= BRAND ================= */
 
 function BrandProfileSection() {
   const navigate = useNavigate();
   const { logout } = useAuthStore();
   const queryClient = useQueryClient();
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['brandProfile'],
     queryFn: brandApi.getProfile,
-  });
-
-  const { data: imageUrl, refetch: refetchImage } = useQuery({
-    queryKey: ['brandImage'],
-    queryFn: brandApi.getImageUrl,
   });
 
   const updateMutation = useMutation({
@@ -250,112 +228,32 @@ function BrandProfileSection() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['brandProfile'] }),
   });
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting, isDirty },
-    setError,
-    reset,
-  } = useForm<BrandFormValues>({
+  const { register, handleSubmit } = useForm<BrandFormValues>({
     resolver: zodResolver(brandSchema),
-    values: profile
-      ? {
-          brandName: profile.brandName,
-          username: profile.username,
-          phoneNumber: profile.phoneNumber,
-          bio: profile.bio ?? '',
-          websiteUrl: profile.websiteUrl ?? '',
-        }
-      : undefined,
   });
 
   const onSubmit = async (data: BrandFormValues) => {
-    try {
-      await updateMutation.mutateAsync({ ...data, websiteUrl: data.websiteUrl || undefined });
-      reset(data);
-    } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } }).response?.status;
-      if (status === 409) setError('username', { message: 'Username already taken.' });
-      else setError('root', { message: 'Update failed. Please try again.' });
-    }
+    await updateMutation.mutateAsync({
+      ...data,
+      websiteUrl: data.websiteUrl || undefined,
+    });
   };
 
-  const handleUpload = async (file: File) => {
-    await brandApi.uploadImage(file);
-    refetchImage();
-  };
-
-  const handleDelete = async () => {
-    await brandApi.deleteAccount();
-    logout();
-    navigate('/login');
-  };
-
-  if (isLoading) {
-    return <p className="text-sm text-gray-500 text-center py-8">Loading profile…</p>;
-  }
+  if (isLoading) return <p>Loading...</p>;
 
   return (
-    <div>
-      <ProfileImageUpload imageUrl={imageUrl ?? undefined} onUpload={handleUpload} />
-      <div className="text-center mb-6 text-xs text-gray-400">
-        {profile?.numberOfFollowers ?? 0} followers · {profile?.numberOfPosts ?? 0} posts
-      </div>
-
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Brand name</label>
-          <input {...register('brandName')} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          {errors.brandName && <p className="text-red-500 text-xs mt-1">{errors.brandName.message}</p>}
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-          <input {...register('username')} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username.message}</p>}
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-          <input {...register('phoneNumber')} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          {errors.phoneNumber && <p className="text-red-500 text-xs mt-1">{errors.phoneNumber.message}</p>}
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
-          <textarea {...register('bio')} rows={3} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
-          <input {...register('websiteUrl')} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          {errors.websiteUrl && <p className="text-red-500 text-xs mt-1">{errors.websiteUrl.message}</p>}
-        </div>
-        {errors.root && <p className="text-red-500 text-sm text-center">{errors.root.message}</p>}
-        <button type="submit" disabled={isSubmitting || !isDirty} className="bg-gray-900 text-white rounded-lg py-2 text-sm font-medium hover:bg-gray-800 disabled:opacity-40 transition-colors">
-          {isSubmitting ? 'Saving…' : 'Save changes'}
-        </button>
-      </form>
-
-      <div className="mt-8 border-t border-gray-100 pt-6">
-        {!deleteConfirm ? (
-          <button onClick={() => setDeleteConfirm(true)} className="w-full text-sm text-red-500 hover:text-red-700 py-2">
-            Delete account
-          </button>
-        ) : (
-          <div className="text-center space-y-2">
-            <p className="text-sm text-gray-700">This cannot be undone. Are you sure?</p>
-            <div className="flex gap-2">
-              <button onClick={() => setDeleteConfirm(false)} className="flex-1 border border-gray-300 rounded-lg py-2 text-sm hover:bg-gray-50">Cancel</button>
-              <button onClick={handleDelete} className="flex-1 bg-red-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-red-700">Delete</button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <input {...register('brandName')} />
+      <button>Save</button>
+    </form>
   );
 }
+
+/* ================= PAGE ================= */
 
 export function ProfilePage() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-  const isBrand = user?.role === 'BRAND';
 
   const handleLogout = async () => {
     try {
@@ -367,21 +265,9 @@ export function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-        <button onClick={() => navigate(-1)} className="text-sm text-gray-500 hover:text-gray-700">
-          ← Back
-        </button>
-        <h2 className="text-sm font-semibold text-gray-900">Profile</h2>
-        <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-700">
-          Sign out
-        </button>
-      </header>
-      <div className="max-w-md mx-auto p-4">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mt-4">
-          {isBrand ? <BrandProfileSection /> : <UserProfileSection />}
-        </div>
-      </div>
+    <div>
+      <button onClick={handleLogout}>Logout</button>
+      {user?.role === 'BRAND' ? <BrandProfileSection /> : <UserProfileSection />}
     </div>
   );
 }
