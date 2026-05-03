@@ -2,7 +2,7 @@ import axios from 'axios';
 import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { token } from './token';
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+const BASE_URL = "https://style-hub-social-media-be-d369dfc7ce40.herokuapp.com";
 
 export const api: AxiosInstance = axios.create({ baseURL: BASE_URL });
 
