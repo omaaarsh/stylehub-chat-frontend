@@ -18,7 +18,7 @@ const userSchema = z.object({
   lastName: z.string().optional(),
   phoneNumber: z.string().optional(),
   bio: z.string().optional(),
-  gender: z.enum(['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY', '']).optional(),
+  gender: z.enum(['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY']).optional(),
 });
 
 const brandSchema = z.object({
